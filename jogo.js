@@ -1,10 +1,12 @@
 // ========================================================================
-// JOGO.JS - VERSÃO COMPLETA COM VIDA NOS MONSTROS
+// JOGO.JS - VERSÃO COMPLETA COM FUNDO DO CANVAS CORRIGIDO
 // ========================================================================
 
 // --- CONFIGURAÇÃO INICIAL (SETUP) ---
 const canvas = document.getElementById('gameCanvas');
 const startScreen = document.getElementById('start-screen');
+const characterSelection = document.getElementById('character-selection');
+const loadingMessage = document.getElementById('loading-message');
 const characterButtons = document.querySelectorAll('.character-card button');
 const ctx = canvas.getContext('2d');
 
@@ -25,6 +27,22 @@ let monstersRemainingInWave = 0;
 let waveTransitionTimer = 3 * 60;
 let gameState = 'start_screen';
 
+// Carregamento da imagem de fundo
+const backgroundImage = new Image();
+backgroundImage.src = 'background.png'; // O nome do seu ficheiro
+
+backgroundImage.onload = () => {
+    // Apenas esconde a mensagem de "loading" e mostra os personagens.
+    // O padrão não é mais criado aqui.
+    loadingMessage.classList.add('hidden');
+    characterSelection.classList.remove('hidden');
+    characterButtons.forEach(button => button.disabled = false);
+};
+
+backgroundImage.onerror = () => {
+    loadingMessage.innerText = "Erro: Ficheiro 'background.png' não encontrado. Verifique se está na pasta correta.";
+};
+
 // ========================================================================
 // CLASSES
 // ========================================================================
@@ -32,74 +50,48 @@ let gameState = 'start_screen';
 class Player {
     constructor(x, y, radius, color) {
         this.x = x; this.y = y; this.radius = radius; this.color = color; this.speed = 3;
-        this.maxHealth = 100;
-        this.health = this.maxHealth;
-        this.level = 1;
-        this.xp = 0;
-        this.xpToNextLevel = 100;
-        this.projectileSpeed = 5;
-        this.attackCooldown = 30;
-        this.currentAttackCooldown = 0;
-        this.damage = 25; // NOVO: Dano base do jogador
+        this.maxHealth = 100; this.health = this.maxHealth;
+        this.level = 1; this.xp = 0; this.xpToNextLevel = 100;
+        this.projectileSpeed = 5; this.attackCooldown = 30; this.currentAttackCooldown = 0;
+        this.damage = 25; this.collectionRadius = 50;
     }
-
     draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-        ctx.fillStyle = this.color;
-        ctx.fill();
+        ctx.fillStyle = this.color; ctx.fill();
     }
-
     drawHealthBar() {
-        ctx.fillStyle = 'red';
-        ctx.fillRect(10, 10, 200, 20);
-        ctx.fillStyle = 'green';
-        ctx.fillRect(10, 10, (this.health / this.maxHealth) * 200, 20);
-        ctx.strokeStyle = 'white';
-        ctx.strokeRect(10, 10, 200, 20);
+        ctx.fillStyle = 'red'; ctx.fillRect(10, 10, 200, 20);
+        ctx.fillStyle = 'green'; ctx.fillRect(10, 10, (this.health / this.maxHealth) * 200, 20);
+        ctx.strokeStyle = 'white'; ctx.strokeRect(10, 10, 200, 20);
     }
-
     drawXpBar() {
         const barWidth = canvas.width - 20;
-        ctx.fillStyle = '#444';
-        ctx.fillRect(10, canvas.height - 30, barWidth, 20);
-        ctx.fillStyle = '#8a2be2';
-        ctx.fillRect(10, canvas.height - 30, (this.xp / this.xpToNextLevel) * barWidth, 20);
-        ctx.strokeStyle = 'white';
-        ctx.strokeRect(10, canvas.height - 30, barWidth, 20);
-        ctx.fillStyle = 'white';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
+        ctx.fillStyle = '#444'; ctx.fillRect(10, canvas.height - 30, barWidth, 20);
+        ctx.fillStyle = '#8a2be2'; ctx.fillRect(10, canvas.height - 30, (this.xp / this.xpToNextLevel) * barWidth, 20);
+        ctx.strokeStyle = 'white'; ctx.strokeRect(10, canvas.height - 30, barWidth, 20);
+        ctx.fillStyle = 'white'; ctx.font = '14px Arial'; ctx.textAlign = 'center';
         ctx.fillText(`LVL ${this.level}`, 40, canvas.height - 15);
         ctx.fillText(`${Math.floor(this.xp)} / ${this.xpToNextLevel}`, barWidth / 2 + 10, canvas.height - 15);
         ctx.textAlign = 'left';
     }
-    
     gainXp(amount) {
         if (gameState !== 'in_wave') return;
         this.xp += amount;
-        if (this.xp >= this.xpToNextLevel) {
-            this.levelUp();
-        }
+        if (this.xp >= this.xpToNextLevel) { this.levelUp(); }
     }
-
     levelUp() {
-        this.level++;
-        this.xp -= this.xpToNextLevel;
+        this.level++; this.xp -= this.xpToNextLevel;
         this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5);
         gameState = 'passive_choice';
         generatePassiveChoices();
     }
-
     update() {
         if (keys.w.pressed && this.y - this.radius > 0) { this.y -= this.speed; }
         if (keys.s.pressed && this.y + this.radius < canvas.height) { this.y += this.speed; }
         if (keys.a.pressed && this.x - this.radius > 0) { this.x -= this.speed; }
         if (keys.d.pressed && this.x + this.radius < canvas.width) { this.x += this.speed; }
-
-        if (this.currentAttackCooldown > 0) {
-            this.currentAttackCooldown--;
-        }
+        if (this.currentAttackCooldown > 0) { this.currentAttackCooldown--; }
     }
 }
 
@@ -111,8 +103,7 @@ class Projectile {
     draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-        ctx.fillStyle = this.color;
-        ctx.fill();
+        ctx.fillStyle = this.color; ctx.fill();
     }
     update() {
         this.draw();
@@ -122,37 +113,41 @@ class Projectile {
 }
 
 class Loot {
-    constructor(x, y, radius, color) {
+    constructor(x, y, radius, color, xpValue) {
         this.x = x; this.y = y; this.radius = radius; this.color = color;
+        this.xpValue = xpValue;
     }
     draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-        ctx.fillStyle = this.color;
-        ctx.fill();
+        ctx.fillStyle = this.color; ctx.fill();
+    }
+    update() {
+        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+        if (distToPlayer < player.collectionRadius) {
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            const speed = Math.max(5, (player.collectionRadius - distToPlayer) * 0.1); 
+            this.x += Math.cos(angle) * speed;
+            this.y += Math.sin(angle) * speed;
+        }
+        this.draw();
     }
 }
 
 class Monster {
     constructor(x, y, radius, color, speed, health) {
         this.x = x; this.y = y; this.radius = radius; this.color = color;
-        this.speed = speed;
-        this.velocity = { x: 0, y: 0 };
-        this.maxHealth = health;
-        this.health = health;
+        this.speed = speed; this.velocity = { x: 0, y: 0 };
+        this.maxHealth = health; this.health = health;
     }
-
     draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-        ctx.strokeStyle = 'black';
-        ctx.stroke();
+        ctx.fillStyle = this.color; ctx.fill();
+        ctx.strokeStyle = 'black'; ctx.stroke();
     }
-
     drawHealthBar() {
-        if(this.health < this.maxHealth) { // Só desenha a barra se o monstro já sofreu dano
+        if(this.health < this.maxHealth) {
             const barWidth = this.radius * 2;
             const barHeight = 5;
             const yOffset = this.y - this.radius - 10;
@@ -162,15 +157,12 @@ class Monster {
             ctx.fillRect(this.x - this.radius, yOffset, barWidth * (this.health / this.maxHealth), barHeight);
         }
     }
-
     update() {
-        this.draw();
-        this.drawHealthBar();
+        this.draw(); this.drawHealthBar();
         const angle = Math.atan2(player.y - this.y, player.x - this.x);
         this.velocity.x = Math.cos(angle) * this.speed;
         this.velocity.y = Math.sin(angle) * this.speed;
-        this.x += this.velocity.x;
-        this.y += this.velocity.y;
+        this.x += this.velocity.x; this.y += this.velocity.y;
     }
 }
 
@@ -186,15 +178,13 @@ class RangedMonster extends Monster {
         this.shootCooldown = 120;
     }
     update() {
-        this.draw();
-        this.drawHealthBar();
+        this.draw(); this.drawHealthBar();
         const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
         if (distToPlayer > 300) {
             const angle = Math.atan2(player.y - this.y, player.x - this.x);
             this.velocity.x = Math.cos(angle) * this.speed;
             this.velocity.y = Math.sin(angle) * this.speed;
-            this.x += this.velocity.x;
-            this.y += this.velocity.y;
+            this.x += this.velocity.x; this.y += this.velocity.y;
         }
         this.shootCooldown--;
         if (this.shootCooldown <= 0) {
@@ -212,16 +202,12 @@ class RangedMonster extends Monster {
 // ========================================================================
 
 function initializeGame(characterType) {
-    let startHealth = 100;
-    let startSpeed = 3;
-    let startProjectileSpeed = 5;
-    let startAttackCooldown = 30;
-    let startDamage = 25;
+    let startHealth = 100, startSpeed = 3, startProjectileSpeed = 5, startAttackCooldown = 30, startDamage = 25, startCollectionRadius = 50;
     switch (characterType) {
         case 'gladiator':
             startHealth = 140; startSpeed = 2.8; break;
         case 'witch':
-            startHealth = 80; startProjectileSpeed = 6; startAttackCooldown = 25; break;
+            startHealth = 80; startProjectileSpeed = 6; startAttackCooldown = 25; startCollectionRadius = 70; break;
         case 'ranger':
             startSpeed = 3.5; startDamage = 20; break;
     }
@@ -229,6 +215,7 @@ function initializeGame(characterType) {
     player.maxHealth = startHealth; player.health = startHealth;
     player.speed = startSpeed; player.projectileSpeed = startProjectileSpeed;
     player.attackCooldown = startAttackCooldown; player.damage = startDamage;
+    player.collectionRadius = startCollectionRadius;
     startScreen.classList.add('hidden');
     canvas.classList.remove('hidden');
     gameState = 'wave_transition';
@@ -241,7 +228,8 @@ function generatePassiveChoices() {
         { text: 'Frenesim (+10% Velocidade de Ataque)', action: () => { player.attackCooldown = Math.max(5, player.attackCooldown * 0.9); } },
         { text: 'Pressa (+10% Velocidade de Movimento)', action: () => { player.speed *= 1.1; } },
         { text: 'Força (+10% de Dano)', action: () => { player.damage *= 1.1; } },
-        { text: 'Recuperação (Cura 50 de vida)', action: () => { player.health = Math.min(player.maxHealth, player.health + 50); } }
+        { text: 'Recuperação (Cura 50 de vida)', action: () => { player.health = Math.min(player.maxHealth, player.health + 50); } },
+        { text: 'Ganância (+25% Raio de Coleta)', action: () => { player.collectionRadius *= 1.25; } }
     ];
     passiveChoiceOptions = allPassives.sort(() => 0.5 - Math.random()).slice(0, 3);
 }
@@ -266,9 +254,7 @@ function startNextWave() {
         setTimeout(() => {
             let x = Math.random() < 0.5 ? 0 - 30 : canvas.width + 30;
             let y = Math.random() < 0.5 ? 0 - 30 : canvas.height + 30;
-            let radius = 15;
-            let color = 'red';
-            let speed = 1;
+            let radius = 15, color = 'red', speed = 1;
             let health = 50 + (waveNumber * 10);
             const isRare = Math.random() < 0.05; 
             if (isRare) {
@@ -286,12 +272,31 @@ function startNextWave() {
 
 function animate() {
     animationId = requestAnimationFrame(animate);
-    if (gameState === 'passive_choice') {
-        drawPassiveChoiceScreen();
-        return;
+    if (gameState === 'passive_choice') { drawPassiveChoiceScreen(); return; }
+    if (!player) return;
+
+    // --- NOVO DESENHO DO FUNDO ---
+    // 1. Limpa completamente o canvas para remover rastros
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 2. Desenha a textura em azulejos maiores e repetidos
+    if (backgroundImage.complete) { // Garante que a imagem já carregou
+        const tileSize = 200; // Define o tamanho de cada "azulejo" da textura
+        for (let y = 0; y < canvas.height; y += tileSize) {
+            for (let x = 0; x < canvas.width; x += tileSize) {
+                ctx.drawImage(backgroundImage, x, y, tileSize, tileSize);
+            }
+        }
     }
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+
+    // 3. Desenha a vinheta por cima para dar atmosfera
+    const vignetteGradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.width / 4, canvas.width / 2, canvas.height / 2, canvas.width);
+    vignetteGradient.addColorStop(0, 'rgba(0,0,0,0)');
+    vignetteGradient.addColorStop(1, 'rgba(0,0,0,0.7)');
+    ctx.fillStyle = vignetteGradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // --- FIM DO NOVO DESENHO DO FUNDO ---
+
     player.update();
     player.draw();
     player.drawHealthBar();
@@ -299,23 +304,26 @@ function animate() {
     ctx.fillStyle = 'white'; ctx.font = '20px Arial'; ctx.textAlign = 'left';
     ctx.fillText('Score: ' + score, 10, 60);
     ctx.fillText('Wave: ' + waveNumber, canvas.width - 100, 30);
+
     if (gameState === 'wave_transition') {
         waveTransitionTimer--;
         ctx.font = '30px Arial'; ctx.textAlign = 'center';
         ctx.fillText(`Próxima onda em: ${Math.ceil(waveTransitionTimer / 60)}`, canvas.width / 2, canvas.height / 2);
-        if (waveTransitionTimer <= 0) {
-            startNextWave();
-        }
+        if (waveTransitionTimer <= 0) { startNextWave(); }
         return;
     }
+    
+    // O resto da lógica do jogo continua aqui...
     lootDrops.forEach((loot, lootIndex) => {
-        loot.draw();
+        loot.update();
         const dist = Math.hypot(player.x - loot.x, player.y - loot.y);
         if (dist - loot.radius - player.radius < 1) {
-            lootDrops.splice(lootIndex, 1);
+            player.gainXp(loot.xpValue);
             score += 100;
+            lootDrops.splice(lootIndex, 1);
         }
     });
+
     projectiles.forEach((projectile, projIndex) => {
         projectile.update();
         if (projectile.x + projectile.radius < 0 ||
@@ -325,6 +333,7 @@ function animate() {
             projectiles.splice(projIndex, 1);
         }
     });
+
     enemyProjectiles.forEach((enemyProj, index) => {
         enemyProj.update();
         if (enemyProj.x + enemyProj.radius < 0 ||
@@ -351,6 +360,7 @@ function animate() {
             }
         }
     });
+
     monsters.forEach((monster, monsterIndex) => {
         monster.update();
         const distPlayerMonster = Math.hypot(player.x - monster.x, player.y - monster.y);
@@ -377,9 +387,8 @@ function animate() {
                 monster.health -= player.damage;
                 projectiles.splice(projIndex, 1);
                 if (monster.health <= 0) {
-                    player.gainXp(25);
-                    if (monster.color === 'yellow') { player.gainXp(50); }
-                    lootDrops.push(new Loot(monster.x, monster.y, 7, 'gold'));
+                    const xpFromMonster = (monster.color === 'yellow') ? 75 : 25;
+                    lootDrops.push(new Loot(monster.x, monster.y, 7, 'gold', xpFromMonster));
                     monstersRemainingInWave--;
                     setTimeout(() => {
                         monsters.splice(monsterIndex, 1);
@@ -388,6 +397,7 @@ function animate() {
             }
         });
     });
+
     if (monsters.length === 0 && monstersRemainingInWave <= 0 && gameState === 'in_wave') {
         gameState = 'wave_transition';
         waveTransitionTimer = 3 * 60;
@@ -404,12 +414,10 @@ characterButtons.forEach(button => {
         initializeGame(charType);
     });
 });
+
 window.addEventListener('click', (event) => {
     if (!player) return;
-    if (player.health <= 0) {
-        window.location.reload();
-        return;
-    }
+    if (player.health <= 0) { window.location.reload(); return; }
     if (gameState !== 'in_wave') return;
     if (player.currentAttackCooldown <= 0) {
         let closestEnemy = null;
@@ -430,19 +438,13 @@ window.addEventListener('click', (event) => {
         }
     }
 });
+
 window.addEventListener('keydown', (event) => {
     if (!player) return;
     if (gameState === 'passive_choice') {
-        if (event.key === '1') {
-            passiveChoiceOptions[0].action();
-            gameState = 'in_wave';
-        } else if (event.key === '2') {
-            passiveChoiceOptions[1].action();
-            gameState = 'in_wave';
-        } else if (event.key === '3') {
-            passiveChoiceOptions[2].action();
-            gameState = 'in_wave';
-        }
+        if (event.key === '1') { passiveChoiceOptions[0].action(); gameState = 'in_wave'; } 
+        else if (event.key === '2') { passiveChoiceOptions[1].action(); gameState = 'in_wave'; } 
+        else if (event.key === '3') { passiveChoiceOptions[2].action(); gameState = 'in_wave'; }
         return;
     }
     switch (event.key.toLowerCase()) {
@@ -452,6 +454,7 @@ window.addEventListener('keydown', (event) => {
         case 'd': keys.d.pressed = true; break;
     }
 });
+
 window.addEventListener('keyup', (event) => {
     switch (event.key.toLowerCase()) {
         case 'w': keys.w.pressed = false; break;
