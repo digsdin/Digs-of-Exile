@@ -1,15 +1,14 @@
 // ========================================================================
-// JOGO.JS - VERSÃO COMPLETA COM MONSTROS CAÇADORES
+// JOGO.JS - VERSÃO COMPLETA E FINAL
 // ========================================================================
 
 // --- CONFIGURAÇÃO INICIAL (SETUP) ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-
 const keys = { w: { pressed: false }, a: { pressed: false }, s: { pressed: false }, d: { pressed: false } };
-
 const projectiles = [];
 const monsters = [];
+const enemyProjectiles = []; // Array para os projéteis dos inimigos
 const lootDrops = [];
 let score = 0;
 let animationId;
@@ -55,39 +54,6 @@ class Player {
     }
 }
 
-class Monster {
-    // ATUALIZADO: Recebe 'speed' em vez de 'velocity'
-    constructor(x, y, radius, color, speed) {
-        this.x = x; this.y = y; this.radius = radius; this.color = color;
-        this.speed = speed; // Guarda a velocidade base do monstro
-        this.velocity = { x: 0, y: 0 }; // A velocidade será calculada no update
-    }
-
-    draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-        ctx.fillStyle = this.color;
-        ctx.fill();
-    }
-
-    // ATUALIZADO: O monstro agora "pensa" a cada frame
-    update() {
-        // 1. Calcula o ângulo em direção à posição ATUAL do jogador
-        const angle = Math.atan2(player.y - this.y, player.x - this.x);
-        
-        // 2. Atualiza a velocidade do monstro com base nesse ângulo e na sua velocidade
-        this.velocity.x = Math.cos(angle) * this.speed;
-        this.velocity.y = Math.sin(angle) * this.speed;
-        
-        // 3. Move-se na nova direção
-        this.x = this.x + this.velocity.x;
-        this.y = this.y + this.velocity.y;
-
-        // 4. Desenha-se na nova posição
-        this.draw();
-    }
-}
-
 class Projectile {
     constructor(x, y, radius, color, velocity) {
         this.x = x; this.y = y; this.radius = radius; this.color = color;
@@ -112,12 +78,78 @@ class Loot {
     constructor(x, y, radius, color) {
         this.x = x; this.y = y; this.radius = radius; this.color = color;
     }
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+    }
+}
+
+// Classe base para todos os monstros
+class Monster {
+    constructor(x, y, radius, color, speed) {
+        this.x = x; this.y = y; this.radius = radius; this.color = color;
+        this.speed = speed;
+        this.velocity = { x: 0, y: 0 };
+    }
 
     draw() {
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
         ctx.fillStyle = this.color;
         ctx.fill();
+        ctx.strokeStyle = 'black';
+        ctx.stroke();
+    }
+
+    update() {
+        // Lógica de perseguição padrão para monstros Melee
+        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+        this.velocity.x = Math.cos(angle) * this.speed;
+        this.velocity.y = Math.sin(angle) * this.speed;
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
+        this.draw();
+    }
+}
+
+// Classe para o monstro corpo a corpo, que herda de Monster
+class MeleeMonster extends Monster {
+    constructor(x, y, radius, color, speed) {
+        super(x, y, radius, color, speed); // Chama o construtor da classe pai
+    }
+    // O método 'update' da classe pai (Monster) já define o comportamento de perseguição,
+    // então não precisamos de reescrevê-lo aqui.
+}
+
+// Classe para o monstro de longo alcance, que herda de Monster
+class RangedMonster extends Monster {
+    constructor(x, y, radius, color, speed) {
+        super(x, y, radius, color, speed);
+        this.shootCooldown = 180; // 3 segundos para atirar
+    }
+
+    update() {
+        const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y);
+        
+        // Se estiver longe do jogador, aproxima-se usando a lógica da classe pai
+        if (distToPlayer > 300) {
+            super.update(); 
+        } else {
+            // Se estiver perto, para de se mover e apenas se desenha
+            this.draw(); 
+        }
+
+        // Lógica de tiro
+        this.shootCooldown--;
+        if (this.shootCooldown <= 0) {
+            const angle = Math.atan2(player.y - this.y, player.x - this.x);
+            const projectileSpeed = 4;
+            const velocity = { x: Math.cos(angle) * projectileSpeed, y: Math.sin(angle) * projectileSpeed };
+            enemyProjectiles.push(new Projectile(this.x, this.y, 5, 'orange', velocity));
+            this.shootCooldown = 120; // Reseta o cooldown
+        }
     }
 }
 
@@ -135,15 +167,26 @@ function startNextWave() {
     
     for (let i = 0; i < monstersRemainingInWave; i++) {
         setTimeout(() => {
-            const radius = Math.random() * (30 - 8) + 8;
-            const x = Math.random() < 0.5 ? 0 - radius : canvas.width + radius;
-            const y = Math.random() < 0.5 ? 0 - radius : canvas.height + radius;
-            const color = `hsl(${Math.random() * 360}, 50%, 50%)`;
-            const speed = 1 + (waveNumber * 0.1);
+            let x = Math.random() < 0.5 ? 0 - 30 : canvas.width + 30;
+            let y = Math.random() < 0.5 ? 0 - 30 : canvas.height + 30;
             
-            // ATUALIZADO: Passa a velocidade diretamente, em vez de um objeto de velocidade
-            monsters.push(new Monster(x, y, radius, color, speed));
+            let radius = 15;
+            let color = 'red';
+            let speed = 1 + (waveNumber * 0.1);
 
+            const isRare = Math.random() < 0.05; 
+            if (isRare) {
+                radius = 30;
+                color = 'yellow';
+                speed *= 1.3;
+            }
+
+            if (Math.random() < 0.7) {
+                monsters.push(new MeleeMonster(x, y, radius, color, speed));
+            } else {
+                if (!isRare) color = '#ff8c00'; // Laranja escuro para Ranged
+                monsters.push(new RangedMonster(x, y, radius, color, speed));
+            }
         }, i * 500);
     }
 }
@@ -194,12 +237,48 @@ function animate() {
         }
     });
 
+    enemyProjectiles.forEach((enemyProj, index) => {
+        enemyProj.update();
+
+        if (enemyProj.x + enemyProj.radius < 0 ||
+            enemyProj.x - enemyProj.radius > canvas.width ||
+            enemyProj.y + enemyProj.radius < 0 ||
+            enemyProj.y - enemyProj.radius > canvas.height) {
+            setTimeout(() => {
+                enemyProjectiles.splice(index, 1);
+            }, 0);
+        }
+
+        const dist = Math.hypot(player.x - enemyProj.x, player.y - enemyProj.y);
+        if (dist - player.radius - enemyProj.radius < 1) {
+            player.health -= 5;
+            enemyProjectiles.splice(index, 1);
+            
+            if (player.health <= 0) {
+                player.health = 0;
+                cancelAnimationFrame(animationId);
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'white';
+                ctx.font = '50px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 40);
+                ctx.font = '30px Arial';
+                ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+                ctx.font = '20px Arial';
+                ctx.fillText('Clique para recomeçar', canvas.width / 2, canvas.height / 2 + 70);
+                return;
+            }
+        }
+    });
+
     monsters.forEach((monster, monsterIndex) => {
         monster.update();
 
         const distPlayerMonster = Math.hypot(player.x - monster.x, player.y - monster.y);
         if (distPlayerMonster - monster.radius - player.radius < 1) {
-            player.health -= 20;
+            player.health -= 10;
             monsters.splice(monsterIndex, 1);
             monstersRemainingInWave--;
 
