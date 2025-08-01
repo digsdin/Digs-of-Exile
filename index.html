@@ -1,49 +1,120 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Path of JS</title>
     <style>
-        body{
+        /* CSS para a aparência da tela inicial e do jogo */
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
             background-color: #1a1a1a;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            color: white;
         }
-        canvas{
+
+        /* O canvas começa escondido */
+        #gameCanvas {
             border: 2px solid #5a402c;
-            background-color: #333;
-            border-radius: 5px;
+            background-color: #000;
         }
-        h1 {
-            color: #f0c674;
+
+        /* Tela de Início */
+        #start-screen {
             text-align: center;
-            font-family: 'Arial', sans-serif;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-            font-size: 2em;
             position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-style: italic;
-            text-decoration: underline;
-            padding: 10px;
-            background-color: rgba(90, 64, 44, 0.8);
-            border-radius: 5px;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #start-screen h1 {
+            font-size: 60px;
+            color: #d4c19c;
+            margin-bottom: 40px;
+        }
+
+        #character-selection {
+            display: flex;
+            gap: 30px;
+        }
+
+        .character-card {
+            border: 2px solid #5a402c;
+            padding: 20px;
+            width: 200px;
+            background-color: #2c2c2c;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .character-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #d4c19c;
+        }
+
+        .character-card h2 {
+            color: #d4c19c;
+            margin-bottom: 10px;
+        }
+
+        .character-card p {
+            font-size: 14px;
+            margin-bottom: 20px;
+            height: 60px;
+        }
+        
+        .character-card button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #5a402c;
+            color: white;
+            border: 1px solid #d4c19c;
+        }
+        
+        /* Classe para esconder/mostrar elementos */
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
-    <h1>PATH OF JS -DIGS</h1>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="start-screen">
+        <h1>Path of JS</h1>
+        <div id="character-selection">
+            <div class="character-card">
+                <h2>Gladiador</h2>
+                <p>Começa com mais vida, mas é um pouco mais lento. Perfeito para quem gosta de aguentar o dano.</p>
+                <button data-char="gladiator">Selecionar</button>
+            </div>
+            <div class="character-card">
+                <h2>Feiticeira</h2>
+                <p>Frágil, mas mortal. Os seus projéteis são mais rápidos e ataca com maior frequência.</p>
+                <button data-char="witch">Selecionar</button>
+            </div>
+            <div class="character-card">
+                <h2>Ranger</h2>
+                <p>Ágil e veloz. Move-se rapidamente pelo campo de batalha para se manter segura.</p>
+                <button data-char="ranger">Selecionar</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" width="800" height="600" class="hidden"></canvas>
+    
     <script src="jogo.js"></script>
 </body>
 </html>
