@@ -1,5 +1,5 @@
 // ========================================================================
-// JOGO.JS - VERSÃO COMPLETA E FINAL
+// JOGO.JS - VERSÃO COMPLETA COM MONSTROS CAÇADORES
 // ========================================================================
 
 // --- CONFIGURAÇÃO INICIAL (SETUP) ---
@@ -13,7 +13,12 @@ const monsters = [];
 const lootDrops = [];
 let score = 0;
 let animationId;
-let spawnIntervalId;
+
+// Variáveis para o sistema de ondas
+let waveNumber = 0;
+let monstersRemainingInWave = 0;
+let waveTransitionTimer = 3 * 60; // 3 segundos (assumindo 60fps)
+let gameState = 'wave_transition'; // Começa na transição para a primeira onda
 
 // ========================================================================
 // CLASSES (OS MOLDES DOS NOSSOS OBJETOS)
@@ -51,9 +56,11 @@ class Player {
 }
 
 class Monster {
-    constructor(x, y, radius, color, velocity) {
+    // ATUALIZADO: Recebe 'speed' em vez de 'velocity'
+    constructor(x, y, radius, color, speed) {
         this.x = x; this.y = y; this.radius = radius; this.color = color;
-        this.velocity = velocity;
+        this.speed = speed; // Guarda a velocidade base do monstro
+        this.velocity = { x: 0, y: 0 }; // A velocidade será calculada no update
     }
 
     draw() {
@@ -63,10 +70,21 @@ class Monster {
         ctx.fill();
     }
 
+    // ATUALIZADO: O monstro agora "pensa" a cada frame
     update() {
-        this.draw();
+        // 1. Calcula o ângulo em direção à posição ATUAL do jogador
+        const angle = Math.atan2(player.y - this.y, player.x - this.x);
+        
+        // 2. Atualiza a velocidade do monstro com base nesse ângulo e na sua velocidade
+        this.velocity.x = Math.cos(angle) * this.speed;
+        this.velocity.y = Math.sin(angle) * this.speed;
+        
+        // 3. Move-se na nova direção
         this.x = this.x + this.velocity.x;
         this.y = this.y + this.velocity.y;
+
+        // 4. Desenha-se na nova posição
+        this.draw();
     }
 }
 
@@ -110,17 +128,24 @@ class Loot {
 
 const player = new Player(canvas.width / 2, canvas.height / 2, 15, 'cyan');
 
-function spawnMonsters() {
-    spawnIntervalId = setInterval(() => {
-        const radius = Math.random() * (30 - 8) + 8;
-        const x = Math.random() < 0.5 ? 0 - radius : canvas.width + radius;
-        const y = Math.random() < 0.5 ? 0 - radius : canvas.height + radius;
-        const color = `hsl(${Math.random() * 360}, 50%, 50%)`;
-        const angle = Math.atan2(player.y - y, player.x - x);
-        const speed = 1;
-        const velocity = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
-        monsters.push(new Monster(x, y, radius, color, velocity));
-    }, 1200);
+function startNextWave() {
+    waveNumber++;
+    gameState = 'in_wave';
+    monstersRemainingInWave = waveNumber * 5;
+    
+    for (let i = 0; i < monstersRemainingInWave; i++) {
+        setTimeout(() => {
+            const radius = Math.random() * (30 - 8) + 8;
+            const x = Math.random() < 0.5 ? 0 - radius : canvas.width + radius;
+            const y = Math.random() < 0.5 ? 0 - radius : canvas.height + radius;
+            const color = `hsl(${Math.random() * 360}, 50%, 50%)`;
+            const speed = 1 + (waveNumber * 0.1);
+            
+            // ATUALIZADO: Passa a velocidade diretamente, em vez de um objeto de velocidade
+            monsters.push(new Monster(x, y, radius, color, speed));
+
+        }, i * 500);
+    }
 }
 
 function animate() {
@@ -131,10 +156,24 @@ function animate() {
     player.update();
     player.draw();
     player.drawHealthBar();
-    
+
     ctx.fillStyle = 'white';
     ctx.font = '20px Arial';
+    ctx.textAlign = 'left';
     ctx.fillText('Score: ' + score, 10, 60);
+    ctx.fillText('Wave: ' + waveNumber, canvas.width - 100, 30);
+
+    if (gameState === 'wave_transition') {
+        waveTransitionTimer--;
+        ctx.font = '30px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`Próxima onda em: ${Math.ceil(waveTransitionTimer / 60)}`, canvas.width / 2, canvas.height / 2);
+        
+        if (waveTransitionTimer <= 0) {
+            startNextWave();
+        }
+        return;
+    }
 
     lootDrops.forEach((loot, lootIndex) => {
         loot.draw();
@@ -160,13 +199,13 @@ function animate() {
 
         const distPlayerMonster = Math.hypot(player.x - monster.x, player.y - monster.y);
         if (distPlayerMonster - monster.radius - player.radius < 1) {
-            monsters.splice(monsterIndex, 1);
             player.health -= 20;
+            monsters.splice(monsterIndex, 1);
+            monstersRemainingInWave--;
 
             if (player.health <= 0) {
                 player.health = 0;
                 cancelAnimationFrame(animationId);
-                clearInterval(spawnIntervalId);
                 
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -186,13 +225,21 @@ function animate() {
             const dist = Math.hypot(projectile.x - monster.x, projectile.y - monster.y);
             if (dist - monster.radius - projectile.radius < 1) {
                 lootDrops.push(new Loot(monster.x, monster.y, 7, 'gold'));
+                monstersRemainingInWave--;
+                
                 setTimeout(() => {
                     monsters.splice(monsterIndex, 1);
                     projectiles.splice(projIndex, 1);
-                }, 0)
+                }, 0);
             }
         });
     });
+
+    if (monsters.length === 0 && monstersRemainingInWave <= 0 && gameState === 'in_wave') {
+        gameState = 'wave_transition';
+        waveTransitionTimer = 3 * 60;
+        score += 500 * waveNumber;
+    }
 }
 
 
@@ -201,11 +248,13 @@ function animate() {
 // ========================================================================
 
 window.addEventListener('click', (event) => {
-    if (player.health <= 0) { // Só permite reiniciar se o jogo acabou
+    // Se o jogo acabou, o clique serve para recomeçar
+    if (player.health <= 0) {
         window.location.reload();
         return;
     }
     
+    // Se o jogo está a decorrer, o clique serve para atirar
     const angle = Math.atan2(event.clientY - player.y, event.clientX - player.x);
     const projectileSpeed = 5;
     const velocity = { x: Math.cos(angle) * projectileSpeed, y: Math.sin(angle) * projectileSpeed };
@@ -232,4 +281,3 @@ window.addEventListener('keyup', (event) => {
 
 // Inicia o jogo
 animate();
-spawnMonsters();
