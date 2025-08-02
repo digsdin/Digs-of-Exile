@@ -158,6 +158,38 @@
             font-weight: bold;
             color: var(--color-parchment);
         }
+        #page-footer {
+    position: absolute; /* Fixa o rodapé em relação à janela */
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.5); /* Fundo escuro semitransparente */
+    text-align: center;
+    font-size: 14px;
+    color: var(--color-border-gold); /* Usa a nossa cor dourada */
+}
+
+#page-footer p {
+    margin-bottom: 8px;
+}
+
+.social-links a {
+    color: var(--color-parchment); /* Usa a nossa cor de pergaminho */
+    text-decoration: none;
+    font-weight: bold;
+    margin: 0 10px;
+    transition: color 0.2s;
+}
+
+.social-links a:hover {
+    color: white; /* Brilha ao passar o rato */
+    text-decoration: underline;
+}
+
+.social-links span {
+    color: var(--color-border-gold);
+}
     </style>
 </head>
 
@@ -198,6 +230,17 @@
     
 
     <script src="jogo.js"></script>
+    <footer id="page-footer">
+        <p>© 2025 DigsWare - Todos os direitos reservados.</p>
+        <p>Conecte-se comigo:</p>
+        <div class="social-links">
+            <a href="https://www.linkedin.com/in/diego-lima-da-silva-b068b2112/" target="_blank">Linkedin</a>
+            <span>|</span>
+            <a href="https://github.com/digsdin" target="_blank">GitHub</a>
+            <span>|</span>
+            <a href="https://digs-portifolio.netlify.app/" target="_blank">Portifólio</a>
+        </div>
+    </footer>
 </body>
 
 </html>

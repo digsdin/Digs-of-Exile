@@ -1,5 +1,5 @@
 // ========================================================================
-// JOGO.JS - VERSÃO COMPLETA COM DIAGNÓSTICO DE RECORDES
+// JOGO.JS - VERSÃO COMPLETA COM NÚMEROS DE DANO
 // ========================================================================
 
 // --- CONFIGURAÇÃO INICIAL (SETUP) ---
@@ -16,22 +16,84 @@ const keys = { w: { pressed: false }, a: { pressed: false }, s: { pressed: false
 
 let player; 
 
-const projectiles = []; const monsters = []; const enemyProjectiles = []; const lootDrops = []; const shockwaves = []; const orbitals = [];
-let score = 0; let animationId; let passiveChoiceOptions = [];
-let waveNumber = 0; let monstersRemainingInWave = 0; let waveTransitionTimer = 3 * 60; let gameState = 'start_screen';
+const projectiles = [];
+const monsters = [];
+const enemyProjectiles = [];
+const lootDrops = [];
+const shockwaves = [];
+const orbitals = [];
+const damageNumbers = []; // Array para os números de dano
+
+let score = 0;
+let animationId;
+let passiveChoiceOptions = [];
+
+let waveNumber = 0;
+let monstersRemainingInWave = 0;
+let waveTransitionTimer = 3 * 60;
+let gameState = 'start_screen';
 
 const backgroundImage = new Image();
 backgroundImage.src = 'background.png';
-backgroundImage.onload = () => { loadingMessage.classList.add('hidden'); characterSelection.classList.remove('hidden'); characterButtons.forEach(button => button.disabled = false); };
-backgroundImage.onerror = () => { loadingMessage.innerText = "Erro: Ficheiro 'background.png' não encontrado."; };
+backgroundImage.onload = () => {
+    loadingMessage.classList.add('hidden');
+    characterSelection.classList.remove('hidden');
+    characterButtons.forEach(button => button.disabled = false);
+};
+backgroundImage.onerror = () => {
+    loadingMessage.innerText = "Erro: Ficheiro 'background.png' não encontrado.";
+};
 
-const SKILL_DATA = { shockwave: { name: 'Onda de Choque', maxLevel: 5, description: "Cria uma explosão em área." }, nova: { name: 'Nova de Projéteis', maxLevel: 5, description: "Dispara projéteis em 360 graus." }, orbitals: { name: 'Orbes Giratórios', maxLevel: 1, description: "Conjura um orbe que o protege." }, vigor: { name: 'Vigor', maxLevel: 5, description: "+20 Vida Máxima" }, frenesim: { name: 'Frenesim', maxLevel: 5, description: "+10% Vel. de Ataque" }, pressa: { name: 'Pressa', maxLevel: 5, description: "+10% Vel. de Movimento" }, forca: { name: 'Força', maxLevel: 5, description: "+10% de Dano" }, ganancia: { name: 'Ganância', maxLevel: 5, description: "+25% Raio de Coleta" } };
-function playSound(src, volume = 0.5) { const sound = new Audio(`assets/${src}`); sound.volume = volume; sound.play().catch(error => console.error(`Erro ao tocar o som ${src}:`, error)); }
+function playSound(src, volume = 0.5) {
+    const sound = new Audio(`assets/${src}`);
+    sound.volume = volume;
+    sound.play().catch(error => console.error(`Erro ao tocar o som ${src}:`, error));
+}
+
+const SKILL_DATA = {
+    shockwave: { name: 'Onda de Choque', maxLevel: 5, description: "Cria uma explosão em área." },
+    nova: { name: 'Nova de Projéteis', maxLevel: 5, description: "Dispara projéteis em 360 graus." },
+    orbitals: { name: 'Orbes Giratórios', maxLevel: 1, description: "Conjura um orbe que o protege." },
+    vigor: { name: 'Vigor', maxLevel: 5, description: "+20 Vida Máxima" },
+    frenesim: { name: 'Frenesim', maxLevel: 5, description: "+10% Vel. de Ataque" },
+    pressa: { name: 'Pressa', maxLevel: 5, description: "+10% Vel. de Movimento" },
+    forca: { name: 'Força', maxLevel: 5, description: "+10% de Dano" },
+    ganancia: { name: 'Ganância', maxLevel: 5, description: "+25% Raio de Coleta" }
+};
 
 // ========================================================================
 // CLASSES
 // ========================================================================
-class Player { constructor(x, y, radius, color) { this.x = x; this.y = y; this.radius = radius; this.color = color; this.speed = 3; this.maxHealth = 100; this.health = this.maxHealth; this.level = 1; this.xp = 0; this.xpToNextLevel = 100; this.projectileSpeed = 5; this.attackCooldown = 30; this.currentAttackCooldown = 0; this.damage = 25; this.collectionRadius = 50; this.skills = {}; this.skillCooldowns = { shockwave: 480, nova: 600 }; this.currentSkillCooldowns = { shockwave: 0, nova: 0 }; } draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill(); } drawHealthBar() { ctx.fillStyle = 'red'; ctx.fillRect(10, 10, 200, 20); ctx.fillStyle = 'green'; ctx.fillRect(10, 10, (this.health / this.maxHealth) * 200, 20); ctx.strokeStyle = 'white'; ctx.strokeRect(10, 10, 200, 20); } drawXpBar() { const barWidth = canvas.width - 20; ctx.fillStyle = '#444'; ctx.fillRect(10, canvas.height - 30, barWidth, 20); ctx.fillStyle = '#8a2be2'; ctx.fillRect(10, canvas.height - 30, (this.xp / this.xpToNextLevel) * barWidth, 20); ctx.strokeStyle = 'white'; ctx.strokeRect(10, canvas.height - 30, barWidth, 20); ctx.fillStyle = 'white'; ctx.font = '14px Arial'; ctx.textAlign = 'center'; ctx.fillText(`LVL ${this.level}`, 40, canvas.height - 15); ctx.fillText(`${Math.floor(this.xp)} / ${this.xpToNextLevel}`, barWidth / 2 + 10, canvas.height - 15); ctx.textAlign = 'left'; } gainXp(amount) { if (gameState !== 'in_wave') return; this.xp += amount; if (this.xp >= this.xpToNextLevel) { this.levelUp(); } } levelUp() { this.level++; this.xp -= this.xpToNextLevel; this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5); gameState = 'passive_choice'; playSound('levelup.wav', 0.8); generatePassiveChoices(); } update() { if (keys.w.pressed && this.y - this.radius > 0) { this.y -= this.speed; } if (keys.s.pressed && this.y + this.radius < canvas.height) { this.y += this.speed; } if (keys.a.pressed && this.x - this.radius > 0) { this.x -= this.speed; } if (keys.d.pressed && this.x + this.radius < canvas.width) { this.x += this.speed; } this.currentAttackCooldown--; if (this.currentAttackCooldown <= 0) { this.performBasicAttack(); this.currentAttackCooldown = this.attackCooldown; } this.updateSkillCooldowns(); } performBasicAttack() { let closestEnemy = null; let minDistance = Infinity; const aimingRange = 300; monsters.forEach(monster => { const distance = Math.hypot(this.x - monster.x, this.y - monster.y); if (distance < aimingRange && distance < minDistance) { closestEnemy = monster; minDistance = distance; } }); if (closestEnemy) { const angle = Math.atan2(closestEnemy.y - this.y, closestEnemy.x - this.x); const velocity = { x: Math.cos(angle) * this.projectileSpeed, y: Math.sin(angle) * this.projectileSpeed }; projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity)); playSound('shoot.wav', 0.3); } } updateSkillCooldowns() { for (const skill in this.currentSkillCooldowns) { if (this.skills[skill]) { if (this.currentSkillCooldowns[skill] > 0) { this.currentSkillCooldowns[skill]--; } else { if (skill === 'shockwave') this.performShockwave(); if (skill === 'nova') this.performNova(); this.currentSkillCooldowns[skill] = this.skillCooldowns[skill]; } } } } performShockwave() { const level = this.skills.shockwave || 1; const radius = 100 + (level * 20); const damage = 40 + (level * 10); shockwaves.push(new Shockwave(this.x, this.y, radius, damage)); } performNova() { const level = this.skills.nova || 1; const projectileCount = 8 + (level * 2); const angleIncrement = (Math.PI * 2) / projectileCount; for (let i = 0; i < projectileCount; i++) { const angle = i * angleIncrement; const velocity = { x: Math.cos(angle) * 3, y: Math.sin(angle) * 3 }; projectiles.push(new Projectile(this.x, this.y, 6, 'lightblue', velocity)); } } }
+class Player {
+    constructor(x, y, radius, color) {
+        this.x = x; this.y = y; this.radius = radius; this.color = color; this.speed = 3;
+        this.maxHealth = 100; this.health = this.maxHealth;
+        this.level = 1; this.xp = 0; this.xpToNextLevel = 100;
+        this.projectileSpeed = 5; this.attackCooldown = 30; this.currentAttackCooldown = 0;
+        this.damage = 25; this.collectionRadius = 50;
+        this.skills = {};
+        this.skillCooldowns = { shockwave: 480, nova: 600 };
+        this.currentSkillCooldowns = { shockwave: 0, nova: 0 };
+    }
+    draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill(); }
+    drawHealthBar() { ctx.fillStyle = 'red'; ctx.fillRect(10, 10, 200, 20); ctx.fillStyle = 'green'; ctx.fillRect(10, 10, (this.health / this.maxHealth) * 200, 20); ctx.strokeStyle = 'white'; ctx.strokeRect(10, 10, 200, 20); }
+    drawXpBar() { const barWidth = canvas.width - 20; ctx.fillStyle = '#444'; ctx.fillRect(10, canvas.height - 30, barWidth, 20); ctx.fillStyle = '#8a2be2'; ctx.fillRect(10, canvas.height - 30, (this.xp / this.xpToNextLevel) * barWidth, 20); ctx.strokeStyle = 'white'; ctx.strokeRect(10, canvas.height - 30, barWidth, 20); ctx.fillStyle = 'white'; ctx.font = '14px Arial'; ctx.textAlign = 'center'; ctx.fillText(`LVL ${this.level}`, 40, canvas.height - 15); ctx.fillText(`${Math.floor(this.xp)} / ${this.xpToNextLevel}`, barWidth / 2 + 10, canvas.height - 15); ctx.textAlign = 'left'; }
+    gainXp(amount) { if (gameState !== 'in_wave') return; this.xp += amount; if (this.xp >= this.xpToNextLevel) { this.levelUp(); } }
+    levelUp() { this.level++; this.xp -= this.xpToNextLevel; this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5); gameState = 'passive_choice'; playSound('levelup.wav', 0.8); generatePassiveChoices(); }
+    update() {
+        if (keys.w.pressed && this.y - this.radius > 0) { this.y -= this.speed; }
+        if (keys.s.pressed && this.y + this.radius < canvas.height) { this.y += this.speed; }
+        if (keys.a.pressed && this.x - this.radius > 0) { this.x -= this.speed; }
+        if (keys.d.pressed && this.x + this.radius < canvas.width) { this.x += this.speed; }
+        this.currentAttackCooldown--;
+        if (this.currentAttackCooldown <= 0) { this.performBasicAttack(); this.currentAttackCooldown = this.attackCooldown; }
+        this.updateSkillCooldowns();
+    }
+    performBasicAttack() { let closestEnemy = null; let minDistance = Infinity; const aimingRange = 300; monsters.forEach(monster => { const distance = Math.hypot(this.x - monster.x, this.y - monster.y); if (distance < aimingRange && distance < minDistance) { closestEnemy = monster; minDistance = distance; } }); if (closestEnemy) { const angle = Math.atan2(closestEnemy.y - this.y, closestEnemy.x - this.x); const velocity = { x: Math.cos(angle) * this.projectileSpeed, y: Math.sin(angle) * this.projectileSpeed }; projectiles.push(new Projectile(this.x, this.y, 5, 'white', velocity)); playSound('shoot.wav', 0.3); } }
+    updateSkillCooldowns() { for (const skill in this.currentSkillCooldowns) { if (this.skills[skill]) { if (this.currentSkillCooldowns[skill] > 0) { this.currentSkillCooldowns[skill]--; } else { if (skill === 'shockwave') this.performShockwave(); if (skill === 'nova') this.performNova(); this.currentSkillCooldowns[skill] = this.skillCooldowns[skill]; } } } }
+    performShockwave() { const level = this.skills.shockwave || 1; const radius = 100 + (level * 20); const damage = 40 + (level * 10); shockwaves.push(new Shockwave(this.x, this.y, radius, damage)); }
+    performNova() { const level = this.skills.nova || 1; const projectileCount = 8 + (level * 2); const angleIncrement = (Math.PI * 2) / projectileCount; for (let i = 0; i < projectileCount; i++) { const angle = i * angleIncrement; const velocity = { x: Math.cos(angle) * 3, y: Math.sin(angle) * 3 }; projectiles.push(new Projectile(this.x, this.y, 6, 'lightblue', velocity)); } }
+}
 class Projectile { constructor(x, y, radius, color, velocity) { this.x = x; this.y = y; this.radius = radius; this.color = color; this.velocity = velocity; } draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill(); } update() { this.draw(); this.x = this.x + this.velocity.x; this.y = this.y + this.velocity.y; } }
 class Loot { constructor(x, y, radius, color, xpValue, scoreValue) { this.x = x; this.y = y; this.radius = radius; this.color = color; this.xpValue = xpValue; this.scoreValue = scoreValue; } draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill(); } update() { const distToPlayer = Math.hypot(player.x - this.x, player.y - this.y); if (distToPlayer < player.collectionRadius) { const angle = Math.atan2(player.y - this.y, player.x - this.x); const speed = Math.max(5, (player.collectionRadius - distToPlayer) * 0.1); this.x += Math.cos(angle) * speed; this.y += Math.sin(angle) * speed; } this.draw(); } }
 class Monster { constructor(x, y, radius, color, speed, health) { this.x = x; this.y = y; this.radius = radius; this.color = color; this.speed = speed; this.velocity = { x: 0, y: 0 }; this.maxHealth = health; this.health = health; this.xpValue = 25; this.scoreValue = 100;} draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false); ctx.fillStyle = this.color; ctx.fill(); ctx.strokeStyle = 'black'; ctx.stroke(); } drawHealthBar() { if(this.health < this.maxHealth) { const barWidth = this.radius * 2; const barHeight = 5; const yOffset = this.y - this.radius - 10; ctx.fillStyle = '#333'; ctx.fillRect(this.x - this.radius, yOffset, barWidth, barHeight); ctx.fillStyle = 'red'; ctx.fillRect(this.x - this.radius, yOffset, barWidth * (this.health / this.maxHealth), barHeight); } } update() { this.draw(); this.drawHealthBar(); const angle = Math.atan2(player.y - this.y, player.x - this.x); this.velocity.x = Math.cos(angle) * this.speed; this.velocity.y = Math.sin(angle) * this.speed; this.x += this.velocity.x; this.y += this.velocity.y; } }
@@ -41,61 +103,34 @@ class Shockwave { constructor(x, y, maxRadius, damage) { this.x = x; this.y = y;
 class Orbital { constructor(player, distance, angleOffset) { this.player = player; this.distance = distance; this.angle = angleOffset; this.radius = 8; this.color = 'magenta'; this.damage = 10; this.rotationSpeed = 0.05; this.hitCooldown = 30; this.monstersOnCooldown = new Map(); } update() { this.angle += this.rotationSpeed; this.x = this.player.x + Math.cos(this.angle) * this.distance; this.y = this.player.y + Math.sin(this.angle) * this.distance; this.monstersOnCooldown.forEach((cooldown, monster) => { if (cooldown > 0) { this.monstersOnCooldown.set(monster, cooldown - 1); } else { this.monstersOnCooldown.delete(monster); } }); this.draw(); } draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill(); ctx.strokeStyle = 'white'; ctx.stroke(); } }
 class Boss extends RangedMonster { constructor(x, y) { const radius = 50; const color = '#6a0dad'; const speed = 0.8; const health = 1000 + (waveNumber * 100); super(x, y, radius, color, speed, health); this.shootCooldown = 90; this.xpValue = 500; this.scoreValue = 2000; } update() { const angle = Math.atan2(player.y - this.y, player.x - this.x); this.velocity.x = Math.cos(angle) * this.speed; this.velocity.y = Math.sin(angle) * this.speed; this.x += this.velocity.x; this.y += this.velocity.y; this.shootCooldown--; if (this.shootCooldown <= 0) { const projectileCount = 16; const angleIncrement = (Math.PI * 2) / projectileCount; for (let i = 0; i < projectileCount; i++) { const projAngle = i * angleIncrement; const velocity = { x: Math.cos(projAngle) * 3, y: Math.sin(projAngle) * 3 }; enemyProjectiles.push(new Projectile(this.x, this.y, 8, 'red', velocity)); } this.shootCooldown = 90; } this.draw(); this.drawHealthBar(); } }
 
-// ========================================================================
-// FUNÇÕES DE GESTÃO DE JOGO E RECORDES (COM DIAGNÓSTICO)
-// ========================================================================
-
-function saveHighScores() {
-    console.log("--- A SALVAR RECORDES ---");
-    const currentHighScore = parseInt(localStorage.getItem('highScore')) || 0;
-    const currentHighWave = parseInt(localStorage.getItem('highWave')) || 0;
-
-    console.log(`Pontuação Atual: ${score}, Recorde Guardado: ${currentHighScore}`);
-    console.log(`Onda Atual: ${waveNumber}, Recorde Guardado: ${currentHighWave}`);
-
-    if (score > currentHighScore) {
-        console.log("NOVO RECORDE DE PONTUAÇÃO! A salvar...");
-        localStorage.setItem('highScore', score);
+class DamageText {
+    constructor(x, y, text, color = 'white') {
+        this.x = x; this.y = y; this.text = text; this.color = color;
+        this.alpha = 1; this.velocity = -0.5; this.lifespan = 60;
     }
-    if (waveNumber > currentHighWave) {
-        console.log("NOVO RECORDE DE ONDA! A salvar...");
-        localStorage.setItem('highWave', waveNumber);
+    update() {
+        this.y += this.velocity;
+        this.lifespan--;
+        if (this.lifespan < 30) { this.alpha -= 1 / 30; }
+        this.draw();
     }
-    console.log("--- FIM DO SALVAMENTO ---");
+    draw() {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.fillStyle = this.color;
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
 }
 
-function loadHighScores() {
-    console.log("--- A CARREGAR RECORDES ---");
-    const highScore = localStorage.getItem('highScore');
-    const highWave = localStorage.getItem('highWave');
-    
-    console.log(`Valor lido do localStorage (highScore): ${highScore}`);
-    console.log(`Valor lido do localStorage (highWave): ${highWave}`);
-
-    const parsedHighScore = parseInt(highScore) || 0;
-    const parsedHighWave = parseInt(highWave) || 0;
-
-    highScoreValueEl.innerText = parsedHighScore;
-    highWaveValueEl.innerText = parsedHighWave;
-    console.log("--- FIM DO CARREGAMENTO ---");
-}
-
-function triggerGameOver() {
-    saveHighScores();
-    cancelAnimationFrame(animationId);
-    
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'white';
-    ctx.font = '50px Cinzel';
-    ctx.textAlign = 'center';
-    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 40);
-    ctx.font = '30px Arial';
-    ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
-    ctx.font = '20px Arial';
-    ctx.fillText('Clique para recomeçar', canvas.width / 2, canvas.height / 2 + 70);
-}
-
+// ========================================================================
+// FUNÇÕES DE GESTÃO DE JOGO E RECORDES
+// ========================================================================
+function saveHighScores() { const currentHighScore = parseInt(localStorage.getItem('highScore')) || 0; const currentHighWave = parseInt(localStorage.getItem('highWave')) || 0; if (score > currentHighScore) { localStorage.setItem('highScore', score); } if (waveNumber > currentHighWave) { localStorage.setItem('highWave', waveNumber); } }
+function loadHighScores() { const highScore = parseInt(localStorage.getItem('highScore')) || 0; const highWave = parseInt(localStorage.getItem('highWave')) || 0; highScoreValueEl.innerText = highScore; highWaveValueEl.innerText = highWave; }
+function triggerGameOver() { saveHighScores(); cancelAnimationFrame(animationId); ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = 'white'; ctx.font = '50px Cinzel'; ctx.textAlign = 'center'; ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 40); ctx.font = '30px Arial'; ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20); ctx.font = '20px Arial'; ctx.fillText('Clique para recomeçar', canvas.width / 2, canvas.height / 2 + 70); }
 
 // ========================================================================
 // LÓGICA PRINCIPAL DO JOGO
@@ -118,8 +153,11 @@ function animate() {
     ctx.fillText('Score: ' + score, 10, 60);
     ctx.fillText('Wave: ' + waveNumber, canvas.width - 100, 30);
     if (gameState === 'wave_transition') { waveTransitionTimer--; ctx.font = '30px Cinzel'; ctx.textAlign = 'center'; ctx.fillText(`Próxima onda em: ${Math.ceil(waveTransitionTimer / 60)}`, canvas.width / 2, canvas.height / 2); if (waveTransitionTimer <= 0) { startNextWave(); } return; }
-    shockwaves.forEach((sw, index) => { sw.update(); monsters.forEach(monster => { const dist = Math.hypot(sw.x - monster.x, sw.y - monster.y); if (dist < sw.currentRadius && !sw.monstersHit.includes(monster)) { monster.health -= sw.damage; sw.monstersHit.push(monster); } }); if (sw.currentRadius >= sw.maxRadius) { shockwaves.splice(index, 1); } });
-    orbitals.forEach(orb => { orb.update(); monsters.forEach(monster => { const dist = Math.hypot(orb.x - monster.x, orb.y - monster.y); if (dist < orb.radius + monster.radius && !orb.monstersOnCooldown.has(monster)) { monster.health -= orb.damage; orb.monstersOnCooldown.set(monster, orb.hitCooldown); } }); });
+    
+    for (let i = damageNumbers.length - 1; i >= 0; i--) { const damageText = damageNumbers[i]; damageText.update(); if (damageText.lifespan <= 0) { damageNumbers.splice(i, 1); } }
+    
+    shockwaves.forEach((sw, index) => { sw.update(); monsters.forEach(monster => { const dist = Math.hypot(sw.x - monster.x, sw.y - monster.y); if (dist < sw.currentRadius && !sw.monstersHit.includes(monster)) { monster.health -= sw.damage; damageNumbers.push(new DamageText(monster.x, monster.y, Math.floor(sw.damage), '#FFFF99')); sw.monstersHit.push(monster); } }); if (sw.currentRadius >= sw.maxRadius) { shockwaves.splice(index, 1); } });
+    orbitals.forEach(orb => { orb.update(); monsters.forEach(monster => { const dist = Math.hypot(orb.x - monster.x, orb.y - monster.y); if (dist < orb.radius + monster.radius && !orb.monstersOnCooldown.has(monster)) { monster.health -= orb.damage; damageNumbers.push(new DamageText(monster.x, monster.y, Math.floor(orb.damage), '#FF99FF')); orb.monstersOnCooldown.set(monster, orb.hitCooldown); } }); });
     lootDrops.forEach((loot, lootIndex) => { loot.update(); const dist = Math.hypot(player.x - loot.x, player.y - loot.y); if (dist - loot.radius - player.radius < 1) { player.gainXp(loot.xpValue); score += loot.scoreValue || 100; lootDrops.splice(lootIndex, 1); playSound('pickup.wav', 0.7); } });
     projectiles.forEach((projectile, projIndex) => { projectile.update(); if (projectile.x + projectile.radius < 0 || projectile.x - projectile.radius > canvas.width || projectile.y + projectile.radius < 0 || projectile.y - projectile.radius > canvas.height) { projectiles.splice(projIndex, 1); } });
     enemyProjectiles.forEach((enemyProj, index) => { enemyProj.update(); if (enemyProj.x + enemyProj.radius < 0 || enemyProj.x - enemyProj.radius > canvas.width || enemyProj.y - enemyProj.radius < 0 || enemyProj.y - enemyProj.radius > canvas.height) { setTimeout(() => { enemyProjectiles.splice(index, 1); }, 0); } const dist = Math.hypot(player.x - enemyProj.x, player.y - enemyProj.y); if (dist - player.radius - enemyProj.radius < 1) { player.health -= 5; enemyProjectiles.splice(index, 1); if (player.health <= 0) { triggerGameOver(); return; } } });
@@ -136,6 +174,7 @@ function animate() {
             const dist = Math.hypot(projectile.x - monster.x, projectile.y - monster.y);
             if (dist - monster.radius - projectile.radius < 1) {
                 monster.health -= player.damage;
+                damageNumbers.push(new DamageText(monster.x, monster.y, Math.floor(player.damage)));
                 playSound('hit.wav', 0.5);
                 projectiles.splice(projIndex, 1);
                 if (monster.health <= 0) {
