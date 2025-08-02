@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Path of JS</title>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
-    
+
     <style>
         /* ================================================= */
         /* CSS COMPLETO - ESTILO MEDIEVAL                    */
@@ -64,7 +65,7 @@
             margin-bottom: 50px;
             text-shadow: 2px 2px 5px #000;
         }
-        
+
         #loading-message {
             font-size: 20px;
             color: var(--color-parchment);
@@ -82,13 +83,13 @@
             width: 220px;
             background-color: var(--color-parchment);
             color: var(--color-text-dark);
-            box-shadow: 5px 5px 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.2);
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.2);
             transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .character-card:hover {
             transform: translateY(-10px) scale(1.05);
-            box-shadow: 10px 10px 20px rgba(0,0,0,0.7), inset 0 0 10px rgba(0,0,0,0.2);
+            box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 10px rgba(0, 0, 0, 0.2);
         }
 
         .character-card h2 {
@@ -117,7 +118,7 @@
             border-radius: 3px;
             transition: background-color 0.2s, color 0.2s, opacity 0.2s;
         }
-        
+
         .character-card button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -131,11 +132,48 @@
         .hidden {
             display: none !important;
         }
+        #high-score-container{
+            display: flex;
+            gap: 30px;
+            margin-bottom: 40px;
+            background-color: rgba(0,0,0,0.3);
+            padding: 15px 30px;
+            border-radius: 5px;
+            border: 1px solid var(--color-border-gold);
+        }
+        .score-box{
+            text-align: center;
+        }
+        .score-box h3{
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--color-border-gold);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .score-box p{
+            font-family: sans-serif;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--color-parchment);
+        }
     </style>
 </head>
+
 <body>
     <div id="start-screen">
         <h1>Path of JS</h1>
+        <div id="high-score-container">
+            <div class="score-box">
+                <h3>Maior Pontuação</h3>
+                <p id="high-score-value">0</p>
+            </div>
+            <div class="score-box">
+                <h3>Maior Onda</h3>
+                <p id="high-wave-value">0</p>
+            </div>
+        </div>
         <p id="loading-message">A carregar recursos...</p>
         <div id="character-selection" class="hidden">
             <div class="character-card">
@@ -157,7 +195,8 @@
     </div>
 
     <canvas id="gameCanvas" width="800" height="600" class="hidden"></canvas>
-    
+
     <script src="jogo.js"></script>
 </body>
+
 </html>
