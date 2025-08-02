@@ -1,5 +1,5 @@
 // ========================================================================
-// JOGO.JS - VERSÃO FINAL E ROBUSTA (COM DOMContentLoaded)
+// JOGO.JS - VERSÃO FINAL COM CORREÇÃO DE TIMING (DOMContentLoaded)
 // ========================================================================
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -21,26 +21,19 @@ window.addEventListener('DOMContentLoaded', () => {
     const projectiles = []; const monsters = []; const enemyProjectiles = []; const lootDrops = []; const shockwaves = []; const orbitals = []; const damageNumbers = [];
     let score = 0; let animationId; let passiveChoiceOptions = [];
     let waveNumber = 0; let monstersRemainingInWave = 0; let waveTransitionTimer = 3 * 60; let gameState = 'start_screen';
+    
+    let screenShakeDuration = 0;
+    let screenShakeIntensity = 0;
 
     const backgroundImage = new Image();
     backgroundImage.src = 'background.png';
-    backgroundImage.onload = () => {
-        loadingMessage.classList.add('hidden');
-        characterSelection.classList.remove('hidden');
-        characterButtons.forEach(button => button.disabled = false);
-    };
-    backgroundImage.onerror = () => {
-        loadingMessage.innerText = "Erro: Ficheiro 'background.png' não encontrado.";
-    };
+    backgroundImage.onload = () => { loadingMessage.classList.add('hidden'); characterSelection.classList.remove('hidden'); characterButtons.forEach(button => button.disabled = false); };
+    backgroundImage.onerror = () => { loadingMessage.innerText = "Erro: Ficheiro 'background.png' não encontrado."; };
 
     const backgroundMusic = new Audio('assets/background-music.mp3');
     backgroundMusic.loop = true; backgroundMusic.volume = 0.4;
 
-    function playSound(src, volume = 0.5) {
-        const sound = new Audio(`assets/${src}`);
-        sound.volume = volume;
-        sound.play().catch(error => console.error(`Erro ao tocar o som ${src}:`, error));
-    }
+    function playSound(src, volume = 0.5) { const sound = new Audio(`assets/${src}`); sound.volume = volume; sound.play().catch(error => console.error(`Erro ao tocar o som ${src}:`, error)); }
 
     const SKILL_DATA = { shockwave: { name: 'Onda de Choque', maxLevel: 5, description: "Cria uma explosão em área." }, nova: { name: 'Nova de Projéteis', maxLevel: 5, description: "Dispara projéteis em 360 graus." }, orbitals: { name: 'Orbes Giratórios', maxLevel: 1, description: "Conjura um orbe que o protege." }, vigor: { name: 'Vigor', maxLevel: 5, description: "+20 Vida Máxima" }, frenesim: { name: 'Frenesim', maxLevel: 5, description: "+10% Vel. de Ataque" }, pressa: { name: 'Pressa', maxLevel: 5, description: "+10% Vel. de Movimento" }, forca: { name: 'Força', maxLevel: 5, description: "+10% de Dano" }, ganancia: { name: 'Ganância', maxLevel: 5, description: "+25% Raio de Coleta" } };
 
@@ -64,6 +57,7 @@ window.addEventListener('DOMContentLoaded', () => {
     function saveHighScores() { const currentHighScore = parseInt(localStorage.getItem('highScore')) || 0; const currentHighWave = parseInt(localStorage.getItem('highWave')) || 0; if (score > currentHighScore) { localStorage.setItem('highScore', score); } if (waveNumber > currentHighWave) { localStorage.setItem('highWave', waveNumber); } }
     function loadHighScores() { const highScore = parseInt(localStorage.getItem('highScore')) || 0; const highWave = parseInt(localStorage.getItem('highWave')) || 0; highScoreValueEl.innerText = highScore; highWaveValueEl.innerText = highWave; }
     function triggerGameOver() { saveHighScores(); cancelAnimationFrame(animationId); backgroundMusic.pause(); backgroundMusic.currentTime = 0; ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = 'white'; ctx.font = '50px Cinzel'; ctx.textAlign = 'center'; ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 40); ctx.font = '30px Arial'; ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20); ctx.font = '20px Arial'; ctx.fillText('Clique para recomeçar', canvas.width / 2, canvas.height / 2 + 70); }
+    function triggerScreenShake(duration, intensity) { screenShakeDuration = duration; screenShakeIntensity = intensity; }
 
     // ========================================================================
     // LÓGICA PRINCIPAL DO JOGO
@@ -78,6 +72,17 @@ window.addEventListener('DOMContentLoaded', () => {
         animationId = requestAnimationFrame(animate);
         if (gameState === 'passive_choice') { drawPassiveChoiceScreen(); return; }
         if (!player) return;
+        
+        ctx.save();
+        if (screenShakeDuration > 0) {
+            const offsetX = (Math.random() - 0.5) * screenShakeIntensity * 2;
+            const offsetY = (Math.random() - 0.5) * screenShakeIntensity * 2;
+            ctx.translate(offsetX, offsetY);
+            screenShakeDuration--;
+        } else {
+            screenShakeIntensity = 0;
+        }
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (backgroundImage.complete && backgroundImage.naturalWidth !== 0) { const tileSize = 200; for (let y = 0; y < canvas.height; y += tileSize) { for (let x = 0; x < canvas.width; x += tileSize) { ctx.drawImage(backgroundImage, x, y, tileSize, tileSize); } } }
         const vignetteGradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.width / 4, canvas.width / 2, canvas.height / 2, canvas.width); vignetteGradient.addColorStop(0, 'rgba(0,0,0,0)'); vignetteGradient.addColorStop(1, 'rgba(0,0,0,0.7)'); ctx.fillStyle = vignetteGradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -85,23 +90,24 @@ window.addEventListener('DOMContentLoaded', () => {
         ctx.fillStyle = 'white'; ctx.font = '20px Arial'; ctx.textAlign = 'left';
         ctx.fillText('Score: ' + score, 10, 60);
         ctx.fillText('Wave: ' + waveNumber, canvas.width - 100, 30);
-        if (gameState === 'wave_transition') { waveTransitionTimer--; ctx.font = '30px Cinzel'; ctx.textAlign = 'center'; ctx.fillText(`Próxima onda em: ${Math.ceil(waveTransitionTimer / 60)}`, canvas.width / 2, canvas.height / 2); if (waveTransitionTimer <= 0) { startNextWave(); } return; }
+        if (gameState === 'wave_transition') { waveTransitionTimer--; ctx.font = '30px Cinzel'; ctx.textAlign = 'center'; ctx.fillText(`Próxima onda em: ${Math.ceil(waveTransitionTimer / 60)}`, canvas.width / 2, canvas.height / 2); if (waveTransitionTimer <= 0) { startNextWave(); } ctx.restore(); return; }
         for (let i = damageNumbers.length - 1; i >= 0; i--) { const damageText = damageNumbers[i]; damageText.update(); if (damageText.lifespan <= 0) { damageNumbers.splice(i, 1); } }
         shockwaves.forEach((sw, index) => { sw.update(); monsters.forEach(monster => { const dist = Math.hypot(sw.x - monster.x, sw.y - monster.y); if (dist < sw.currentRadius && !sw.monstersHit.includes(monster)) { monster.health -= sw.damage; damageNumbers.push(new DamageText(monster.x, monster.y, Math.floor(sw.damage), '#FFFF99')); sw.monstersHit.push(monster); } }); if (sw.currentRadius >= sw.maxRadius) { shockwaves.splice(index, 1); } });
         orbitals.forEach(orb => { orb.update(); monsters.forEach(monster => { const dist = Math.hypot(orb.x - monster.x, orb.y - monster.y); if (dist < orb.radius + monster.radius && !orb.monstersOnCooldown.has(monster)) { monster.health -= orb.damage; damageNumbers.push(new DamageText(monster.x, monster.y, Math.floor(orb.damage), '#FF99FF')); orb.monstersOnCooldown.set(monster, orb.hitCooldown); } }); });
         lootDrops.forEach((loot, lootIndex) => { loot.update(); const dist = Math.hypot(player.x - loot.x, player.y - loot.y); if (dist - loot.radius - player.radius < 1) { player.gainXp(loot.xpValue); score += loot.scoreValue || 100; lootDrops.splice(lootIndex, 1); playSound('pickup.wav', 0.7); } });
         projectiles.forEach((projectile, projIndex) => { projectile.update(); if (projectile.x + projectile.radius < 0 || projectile.x - projectile.radius > canvas.width || projectile.y + projectile.radius < 0 || projectile.y - projectile.radius > canvas.height) { projectiles.splice(projIndex, 1); } });
-        enemyProjectiles.forEach((enemyProj, index) => { enemyProj.update(); if (enemyProj.x + enemyProj.radius < 0 || enemyProj.x - enemyProj.radius > canvas.width || enemyProj.y - enemyProj.radius < 0 || enemyProj.y - enemyProj.radius > canvas.height) { setTimeout(() => { enemyProjectiles.splice(index, 1); }, 0); } const dist = Math.hypot(player.x - enemyProj.x, player.y - enemyProj.y); if (dist - player.radius - enemyProj.radius < 1) { player.health -= 5; enemyProjectiles.splice(index, 1); if (player.health <= 0) { triggerGameOver(); return; } } });
+        enemyProjectiles.forEach((enemyProj, index) => { enemyProj.update(); if (enemyProj.x + enemyProj.radius < 0 || enemyProj.x - enemyProj.radius > canvas.width || enemyProj.y - enemyProj.radius < 0 || enemyProj.y - enemyProj.radius > canvas.height) { setTimeout(() => { enemyProjectiles.splice(index, 1); }, 0); } const dist = Math.hypot(player.x - enemyProj.x, player.y - enemyProj.y); if (dist - player.radius - enemyProj.radius < 1) { player.health -= 5; triggerScreenShake(15, 4); enemyProjectiles.splice(index, 1); if (player.health <= 0) { triggerGameOver(); ctx.restore(); return; } } });
         monsters.forEach((monster, monsterIndex) => {
             monster.update();
             const distPlayerMonster = Math.hypot(player.x - monster.x, player.y - monster.y);
             if (distPlayerMonster - monster.radius - player.radius < 1) {
                 player.health -= 15;
+                triggerScreenShake(20, 7);
                 const knockbackAngle = Math.atan2(monster.y - player.y, monster.x - player.x);
                 const knockbackDistance = 10;
                 monster.x += Math.cos(knockbackAngle) * knockbackDistance;
                 monster.y += Math.sin(knockbackAngle) * knockbackDistance;
-                if (player.health <= 0) { triggerGameOver(); return; }
+                if (player.health <= 0) { triggerGameOver(); ctx.restore(); return; }
             }
             projectiles.forEach((projectile, projIndex) => {
                 const dist = Math.hypot(projectile.x - monster.x, projectile.y - monster.y);
@@ -124,6 +130,8 @@ window.addEventListener('DOMContentLoaded', () => {
             });
         });
         if (monsters.length === 0 && monstersRemainingInWave <= 0 && gameState === 'in_wave') { gameState = 'wave_transition'; waveTransitionTimer = 3 * 60; score += 500 * waveNumber; }
+
+        ctx.restore();
     }
 
     // ========================================================================
