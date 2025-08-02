@@ -1,5 +1,5 @@
 // ========================================================================
-// JOGO.JS - VERSÃO COMPLETA E CORRIGIDA (COM A FUNÇÃO playSound)
+// JOGO.JS - VERSÃO COMPLETA COM DIAGNÓSTICO DE RECORDES
 // ========================================================================
 
 // --- CONFIGURAÇÃO INICIAL (SETUP) ---
@@ -8,25 +8,25 @@ const startScreen = document.getElementById('start-screen');
 const characterSelection = document.getElementById('character-selection');
 const loadingMessage = document.getElementById('loading-message');
 const characterButtons = document.querySelectorAll('.character-card button');
+const highScoreValueEl = document.getElementById('high-score-value');
+const highWaveValueEl = document.getElementById('high-wave-value');
 const ctx = canvas.getContext('2d');
+
 const keys = { w: { pressed: false }, a: { pressed: false }, s: { pressed: false }, d: { pressed: false } };
+
 let player; 
+
 const projectiles = []; const monsters = []; const enemyProjectiles = []; const lootDrops = []; const shockwaves = []; const orbitals = [];
 let score = 0; let animationId; let passiveChoiceOptions = [];
 let waveNumber = 0; let monstersRemainingInWave = 0; let waveTransitionTimer = 3 * 60; let gameState = 'start_screen';
+
 const backgroundImage = new Image();
 backgroundImage.src = 'background.png';
 backgroundImage.onload = () => { loadingMessage.classList.add('hidden'); characterSelection.classList.remove('hidden'); characterButtons.forEach(button => button.disabled = false); };
 backgroundImage.onerror = () => { loadingMessage.innerText = "Erro: Ficheiro 'background.png' não encontrado."; };
 
 const SKILL_DATA = { shockwave: { name: 'Onda de Choque', maxLevel: 5, description: "Cria uma explosão em área." }, nova: { name: 'Nova de Projéteis', maxLevel: 5, description: "Dispara projéteis em 360 graus." }, orbitals: { name: 'Orbes Giratórios', maxLevel: 1, description: "Conjura um orbe que o protege." }, vigor: { name: 'Vigor', maxLevel: 5, description: "+20 Vida Máxima" }, frenesim: { name: 'Frenesim', maxLevel: 5, description: "+10% Vel. de Ataque" }, pressa: { name: 'Pressa', maxLevel: 5, description: "+10% Vel. de Movimento" }, forca: { name: 'Força', maxLevel: 5, description: "+10% de Dano" }, ganancia: { name: 'Ganância', maxLevel: 5, description: "+25% Raio de Coleta" } };
-
-// NOVO (DE VOLTA): Função auxiliar para tocar efeitos sonoros
-function playSound(src, volume = 0.5) {
-    const sound = new Audio(`assets/${src}`);
-    sound.volume = volume;
-    sound.play().catch(error => console.error(`Erro ao tocar o som ${src}:`, error));
-}
+function playSound(src, volume = 0.5) { const sound = new Audio(`assets/${src}`); sound.volume = volume; sound.play().catch(error => console.error(`Erro ao tocar o som ${src}:`, error)); }
 
 // ========================================================================
 // CLASSES
@@ -42,11 +42,60 @@ class Orbital { constructor(player, distance, angleOffset) { this.player = playe
 class Boss extends RangedMonster { constructor(x, y) { const radius = 50; const color = '#6a0dad'; const speed = 0.8; const health = 1000 + (waveNumber * 100); super(x, y, radius, color, speed, health); this.shootCooldown = 90; this.xpValue = 500; this.scoreValue = 2000; } update() { const angle = Math.atan2(player.y - this.y, player.x - this.x); this.velocity.x = Math.cos(angle) * this.speed; this.velocity.y = Math.sin(angle) * this.speed; this.x += this.velocity.x; this.y += this.velocity.y; this.shootCooldown--; if (this.shootCooldown <= 0) { const projectileCount = 16; const angleIncrement = (Math.PI * 2) / projectileCount; for (let i = 0; i < projectileCount; i++) { const projAngle = i * angleIncrement; const velocity = { x: Math.cos(projAngle) * 3, y: Math.sin(projAngle) * 3 }; enemyProjectiles.push(new Projectile(this.x, this.y, 8, 'red', velocity)); } this.shootCooldown = 90; } this.draw(); this.drawHealthBar(); } }
 
 // ========================================================================
-// FUNÇÕES DE GESTÃO DE JOGO E RECORDES
+// FUNÇÕES DE GESTÃO DE JOGO E RECORDES (COM DIAGNÓSTICO)
 // ========================================================================
-function saveHighScores() { const currentHighScore = parseInt(localStorage.getItem('highScore')) || 0; const currentHighWave = parseInt(localStorage.getItem('highWave')) || 0; if (score > currentHighScore) { localStorage.setItem('highScore', score); } if (waveNumber > currentHighWave) { localStorage.setItem('highWave', waveNumber); } }
-function loadHighScores() { const highScore = parseInt(localStorage.getItem('highScore')) || 0; const highWave = parseInt(localStorage.getItem('highWave')) || 0; highScoreValueEl.innerText = highScore; highWaveValueEl.innerText = highWave; }
-function triggerGameOver() { saveHighScores(); cancelAnimationFrame(animationId); ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = 'white'; ctx.font = '50px Cinzel'; ctx.textAlign = 'center'; ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 40); ctx.font = '30px Arial'; ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20); ctx.font = '20px Arial'; ctx.fillText('Clique para recomeçar', canvas.width / 2, canvas.height / 2 + 70); }
+
+function saveHighScores() {
+    console.log("--- A SALVAR RECORDES ---");
+    const currentHighScore = parseInt(localStorage.getItem('highScore')) || 0;
+    const currentHighWave = parseInt(localStorage.getItem('highWave')) || 0;
+
+    console.log(`Pontuação Atual: ${score}, Recorde Guardado: ${currentHighScore}`);
+    console.log(`Onda Atual: ${waveNumber}, Recorde Guardado: ${currentHighWave}`);
+
+    if (score > currentHighScore) {
+        console.log("NOVO RECORDE DE PONTUAÇÃO! A salvar...");
+        localStorage.setItem('highScore', score);
+    }
+    if (waveNumber > currentHighWave) {
+        console.log("NOVO RECORDE DE ONDA! A salvar...");
+        localStorage.setItem('highWave', waveNumber);
+    }
+    console.log("--- FIM DO SALVAMENTO ---");
+}
+
+function loadHighScores() {
+    console.log("--- A CARREGAR RECORDES ---");
+    const highScore = localStorage.getItem('highScore');
+    const highWave = localStorage.getItem('highWave');
+    
+    console.log(`Valor lido do localStorage (highScore): ${highScore}`);
+    console.log(`Valor lido do localStorage (highWave): ${highWave}`);
+
+    const parsedHighScore = parseInt(highScore) || 0;
+    const parsedHighWave = parseInt(highWave) || 0;
+
+    highScoreValueEl.innerText = parsedHighScore;
+    highWaveValueEl.innerText = parsedHighWave;
+    console.log("--- FIM DO CARREGAMENTO ---");
+}
+
+function triggerGameOver() {
+    saveHighScores();
+    cancelAnimationFrame(animationId);
+    
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = '50px Cinzel';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 40);
+    ctx.font = '30px Arial';
+    ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 20);
+    ctx.font = '20px Arial';
+    ctx.fillText('Clique para recomeçar', canvas.width / 2, canvas.height / 2 + 70);
+}
+
 
 // ========================================================================
 // LÓGICA PRINCIPAL DO JOGO
@@ -56,6 +105,7 @@ function generatePassiveChoices() { const choicePool = []; const ownedSkills = O
 generatePassiveChoices.actions = { vigor: () => { player.maxHealth += 20; player.health += 20; }, frenesim: () => { player.attackCooldown = Math.max(5, player.attackCooldown * 0.9); }, pressa: () => { player.speed *= 1.1; }, forca: () => { player.damage *= 1.1; }, ganancia: () => { player.collectionRadius *= 1.25; } };
 function drawPassiveChoiceScreen() { ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = 'white'; ctx.font = '40px Cinzel'; ctx.textAlign = 'center'; ctx.fillText('NÍVEL AUMENTADO!', canvas.width / 2, 150); ctx.font = '25px Cinzel'; ctx.fillText('Escolha uma melhoria (Pressione 1, 2 ou 3)', canvas.width / 2, 200); passiveChoiceOptions.forEach((option, index) => { ctx.font = `bold 20px Cinzel`; ctx.fillStyle = option.type === 'new_skill' ? '#d4c19c' : '#8888ff'; ctx.fillText(`${index + 1}: ${option.text}`, canvas.width / 2, 300 + (index * 70)); ctx.font = `16px Arial`; ctx.fillStyle = 'white'; ctx.fillText(option.description, canvas.width / 2, 330 + (index * 70)); }); }
 function startNextWave() { waveNumber++; gameState = 'in_wave'; if (waveNumber % 10 === 0) { monstersRemainingInWave = 1; monsters.push(new Boss(canvas.width / 2, -100)); } else if (waveNumber % 5 === 0) { monstersRemainingInWave = waveNumber * 2 + 1; for (let i = 0; i < monstersRemainingInWave; i++) { setTimeout(() => { let x = Math.random() < 0.5 ? 0 - 30 : canvas.width + 30; let y = Math.random() < 0.5 ? 0 - 30 : canvas.height + 30; let radius = 30; let color = 'yellow'; let speed = 1.25; let health = (50 + (waveNumber * 10)) * 3; if (Math.random() < 0.7) { monsters.push(new MeleeMonster(x, y, radius, color, speed, health)); } else { monsters.push(new RangedMonster(x, y, radius, color, speed, health)); } }, i * 1000); } } else { monstersRemainingInWave = waveNumber * 3 + 2; for (let i = 0; i < monstersRemainingInWave; i++) { setTimeout(() => { let x = Math.random() < 0.5 ? 0 - 30 : canvas.width + 30; let y = Math.random() < 0.5 ? 0 - 30 : canvas.height + 30; let radius = 15, color = 'red', speed = 1; let health = 50 + (waveNumber * 10); const isRare = Math.random() < 0.05; if (isRare) { radius = 30; color = 'yellow'; speed *= 1.25; health *= 3; } if (Math.random() < 0.7) { monsters.push(new MeleeMonster(x, y, radius, color, speed, health)); } else { if (!isRare) color = '#ff8c00'; monsters.push(new RangedMonster(x, y, radius, color, speed, health)); } }, i * 1000); } } }
+
 function animate() {
     animationId = requestAnimationFrame(animate);
     if (gameState === 'passive_choice') { drawPassiveChoiceScreen(); return; }
