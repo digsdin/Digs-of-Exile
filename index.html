@@ -1,20 +1,15 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Path of SURVIVALS</title>
-
+    <title>Path of JS</title>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
-
+    <link rel="icon" href="data:,">
     <style>
-        /* ================================================= */
-        /* CSS COMPLETO - ESTILO MEDIEVAL                    */
-        /* ================================================= */
-
         :root {
             --color-background: #1a1a1a;
             --color-parchment: #f5e5c7;
@@ -24,13 +19,7 @@
             --color-text-light: #f0f0f0;
             --font-primary: 'Cinzel', serif;
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: radial-gradient(ellipse at center, #4a4a4a 0%, var(--color-background) 70%);
             display: flex;
@@ -40,13 +29,11 @@
             color: var(--color-text-light);
             font-family: var(--font-primary);
         }
-
         #gameCanvas {
             border: 2px solid var(--color-border-gold);
             background-color: #000;
             border-radius: 5px;
         }
-
         #start-screen {
             text-align: center;
             position: absolute;
@@ -57,154 +44,40 @@
             justify-content: center;
             align-items: center;
         }
-
         #start-screen h1 {
-            font-size: 70px;
+            font-size: 80px;
             font-weight: 700;
             color: var(--color-parchment);
-            margin-bottom: 50px;
+            margin-bottom: 40px;
             text-shadow: 2px 2px 5px #000;
         }
-
-        #loading-message {
-            font-size: 20px;
-            color: var(--color-parchment);
-        }
-
-        #character-selection {
-            display: flex;
-            gap: 40px;
-        }
-
-        .character-card {
-            border: 3px solid var(--color-dark-brown);
-            border-radius: 5px;
-            padding: 20px;
-            width: 220px;
-            background-color: var(--color-parchment);
-            color: var(--color-text-dark);
-            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.2);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .character-card:hover {
-            transform: translateY(-10px) scale(1.05);
-            box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.7), inset 0 0 10px rgba(0, 0, 0, 0.2);
-        }
-
-        .character-card h2 {
-            color: var(--color-dark-brown);
-            margin-bottom: 15px;
-            font-weight: 700;
-        }
-
-        .character-card p {
-            font-family: sans-serif;
-            font-size: 14px;
-            margin-bottom: 25px;
-            height: 70px;
-            line-height: 1.4;
-        }
-
-        .character-card button {
-            padding: 12px 25px;
-            font-size: 16px;
-            font-family: var(--font-primary);
-            font-weight: 700;
-            cursor: pointer;
-            background-color: var(--color-dark-brown);
-            color: var(--color-parchment);
-            border: 2px solid var(--color-border-gold);
-            border-radius: 3px;
-            transition: background-color 0.2s, color 0.2s, opacity 0.2s;
-        }
-
-        .character-card button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .character-card button:hover:not(:disabled) {
-            background-color: var(--color-border-gold);
-            color: var(--color-dark-brown);
-        }
-
-        .hidden {
-            display: none !important;
-        }
-        #high-score-container{
-            display: flex;
-            gap: 30px;
-            margin-bottom: 40px;
-            background-color: rgba(0,0,0,0.3);
-            padding: 15px 30px;
-            border-radius: 5px;
-            border: 1px solid var(--color-border-gold);
-        }
-        .score-box{
-            text-align: center;
-        }
-        .score-box h3{
-            font-size: 16px;
-            font-weight: 400;
-            color: var(--color-border-gold);
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .score-box p{
-            font-family: sans-serif;
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--color-parchment);
-        }
-        #page-footer {
-    position: absolute; /* Fixa o rodapé em relação à janela */
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    padding: 15px;
-    background-color: rgba(0, 0, 0, 0.5); /* Fundo escuro semitransparente */
-    text-align: center;
-    font-size: 14px;
-    color: var(--color-border-gold); /* Usa a nossa cor dourada */
-}
-
-#page-footer p {
-    margin-bottom: 8px;
-}
-
-.social-links a {
-    color: var(--color-parchment); /* Usa a nossa cor de pergaminho */
-    text-decoration: none;
-    font-weight: bold;
-    margin: 0 10px;
-    transition: color 0.2s;
-}
-
-.social-links a:hover {
-    color: white; /* Brilha ao passar o rato */
-    text-decoration: underline;
-}
-
-.social-links span {
-    color: var(--color-border-gold);
-}
+        #loading-message { font-size: 20px; color: var(--color-parchment); }
+        #high-score-container { display: flex; gap: 30px; margin-bottom: 40px; background-color: rgba(0, 0, 0, 0.3); padding: 15px 30px; border-radius: 5px; border: 1px solid var(--color-border-gold); }
+        .score-box { text-align: center; }
+        .score-box h3 { font-size: 16px; font-weight: 400; color: var(--color-border-gold); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .score-box p { font-family: sans-serif; font-size: 24px; font-weight: bold; color: var(--color-parchment); }
+        #character-selection { display: flex; gap: 40px; }
+        .character-card { border: 3px solid var(--color-dark-brown); border-radius: 5px; padding: 20px; width: 220px; background-color: var(--color-parchment); color: var(--color-text-dark); box-shadow: 5px 5px 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.2); transition: transform 0.2s, box-shadow 0.2s; }
+        .character-card:hover { transform: translateY(-10px) scale(1.05); box-shadow: 10px 10px 20px rgba(0,0,0,0.7), inset 0 0 10px rgba(0,0,0,0.2); }
+        .character-card h2 { color: var(--color-dark-brown); margin-bottom: 15px; font-weight: 700; }
+        .character-card p { font-family: sans-serif; font-size: 14px; margin-bottom: 25px; height: 70px; line-height: 1.4; }
+        .character-card button { padding: 12px 25px; font-size: 16px; font-family: var(--font-primary); font-weight: 700; cursor: pointer; background-color: var(--color-dark-brown); color: var(--color-parchment); border: 2px solid var(--color-border-gold); border-radius: 3px; transition: background-color 0.2s, color 0.2s, opacity 0.2s; }
+        .character-card button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .character-card button:hover:not(:disabled) { background-color: var(--color-border-gold); color: var(--color-dark-brown); }
+        .hidden { display: none !important; }
+        #page-footer { position: absolute; bottom: 0; left: 0; width: 100%; padding: 15px; background-color: rgba(0, 0, 0, 0.5); text-align: center; font-size: 14px; color: var(--color-border-gold); }
+        #page-footer p { margin-bottom: 8px; }
+        .social-links a { color: var(--color-parchment); text-decoration: none; font-weight: bold; margin: 0 10px; transition: color 0.2s; }
+        .social-links a:hover { color: white; text-decoration: underline; }
+        .social-links span { color: var(--color-border-gold); }
     </style>
 </head>
-
 <body>
     <div id="start-screen">
-        <h1>Path of SURVIVALS</h1>
+        <h1>Path of JS</h1>
         <div id="high-score-container">
-            <div class="score-box">
-                <h3>Maior Pontuação</h3>
-                <p id="high-score-value">0</p>
-            </div>
-            <div class="score-box">
-                <h3>Maior Onda</h3>
-                <p id="high-wave-value">0</p>
-            </div>
+            <div class="score-box"><h3>Maior Pontuação</h3><p id="high-score-value">0</p></div>
+            <div class="score-box"><h3>Maior Onda</h3><p id="high-wave-value">0</p></div>
         </div>
         <p id="loading-message">A carregar recursos...</p>
         <div id="character-selection" class="hidden">
@@ -225,22 +98,17 @@
             </div>
         </div>
     </div>
-
     <canvas id="gameCanvas" width="800" height="600" class="hidden"></canvas>
-    
-
-    <script src="jogo.js"></script>
     <footer id="page-footer">
         <p>© 2025 DigsWare - Todos os direitos reservados.</p>
         <p>Conecte-se comigo:</p>
         <div class="social-links">
-            <a href="https://www.linkedin.com/in/diego-lima-da-silva-b068b2112/" target="_blank">Linkedin</a>
-            <span>|</span>
-            <a href="https://github.com/digsdin" target="_blank">GitHub</a>
-            <span>|</span>
-            <a href="https://digs-portifolio.netlify.app/" target="_blank">Portifólio</a>
+            <a href="#" target="_blank">Linkedin</a><span>|</span>
+            <a href="#" target="_blank">GitHub</a><span>|</span>
+            <a href="#" target="_blank">Portfólio</a>
         </div>
     </footer>
-</body>
 
+    <script src="jogo.js"></script>
+</body>
 </html>
